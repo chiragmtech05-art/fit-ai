@@ -27,20 +27,23 @@ export default function GeneratePage() {
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("API Failed");
-
       const data = await res.json();
+
+      if (!res.ok) {
+        // Agar server ne error diya (Timeout ya Key issue)
+        throw new Error(data.details || "Failed to generate");
+      }
+
       localStorage.setItem("generatedPlan", JSON.stringify(data));
       router.push("/workout");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error generating plan.");
+      alert(`Error: ${error.message}. Please try again.`);
     } finally {
       setLoading(false);
     }
   };
-
   // --- CLEAN PROFESSIONAL CARD ---
   const SelectionCard = ({ label, value, category }: any) => {
     const isSelected = formData[category as keyof typeof formData] === value;

@@ -1,51 +1,54 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Vercel ko bolte hain ye dynamic route hai
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-
     if (!apiKey) {
+      console.error("❌ Error: API Key nahi mili Vercel par");
       return NextResponse.json({ error: "API Key Missing" }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 👇 YEH HAI MAGIC FIX: List me se 'gemini-2.0-flash' uthaya hai
+    // 👇 YAHAN HAI FIX: Hum '2.0-flash' use karenge jo teri list me tha
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const body = await req.json();
     const { muscle, equipment, level } = body;
 
-    const prompt = `
-      Act as a professional fitness trainer. Create a workout plan for a ${level} level person targeting ${muscle} using ${equipment}.
-      
-      IMPORTANT: Return the response ONLY in valid JSON format. Do not add any markdown formatting like \`\`\`json.
-      Structure:
-      {
-        "workoutName": "Creative Name",
-        "exercises": [
-          { "name": "Exercise Name", "sets": "3", "reps": "12", "tips": "Short tip" }
-        ]
-      }
-    `;
+    console.log(`🚀 Requesting AI for: ${muscle}`);
 
-    const result = await model.generateContent(prompt);
+    const prompt = `Create a workout for ${level} level, ${muscle}, using ${equipment}. 
+    Return STRICT JSON (No Markdown). Format:
+    {
+      "workoutName": "Name",
+      "exercises": [
+        { "name": "Exercise Name", "sets": "3", "reps": "12", "tips": "Tip" }
+      ]
+    }`;
+
+    // 👇 9 Second ka timeout (Vercel ke 10s limit se pehle hum khud error pakad lenge)
+    const result = await Promise.race([
+      model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 500 }, // Chota response taaki fast ho
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: AI took too long")), 9000))
+    ]) as any;
+
     const response = await result.response;
+    let text = response.text().replace(/```json/g, "").replace(/```/g, "").trim();
     
-    let text = response.text();
-    // Safai Abhiyaan: Agar AI ne galti se markdown lagaya to hata denge
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-
-    const plan = JSON.parse(text);
-
-    return NextResponse.json(plan);
+    console.log("✅ AI Success!");
+    return NextResponse.json(JSON.parse(text));
 
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    return NextResponse.json({ 
-      error: "AI Error", 
-      details: error.message 
-    }, { status: 500 });
+    // Ye error Vercel ke 'Logs' tab me dikhega
+    console.error("❌ API ERROR:", error);
+    return NextResponse.json({ error: "Generation Failed", details: error.message }, { status: 500 });
   }
 }
