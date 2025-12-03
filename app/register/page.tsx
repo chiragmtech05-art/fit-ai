@@ -11,196 +11,105 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // DOM Refs
+  // Refs
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<HTMLDivElement>(null);
 
-  // --- FULL FACE ANIMATION LOGIC ---
+  // States
+  const [activeField, setActiveField] = useState<"name" | "email" | "none">("none");
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  // --- ANIMATION INIT ---
   useEffect(() => {
-    // 1. DOM Elements Select karo
     const armL = document.querySelector(".armL");
     const armR = document.querySelector(".armR");
-    const eyeL = document.querySelector(".eyeL");
-    const eyeR = document.querySelector(".eyeR");
-    const nose = document.querySelector(".nose");
-    const mouth = document.querySelector(".mouth");
-    const chin = document.querySelector(".chin");
-    const face = document.querySelector(".face");
-    const eyebrow = document.querySelector(".eyebrow");
-    const outerEarL = document.querySelector(".earL .outerEar");
-    const outerEarR = document.querySelector(".earR .outerEar");
-    const earHairL = document.querySelector(".earL .earHair");
-    const earHairR = document.querySelector(".earR .earHair");
-    const hair = document.querySelector(".hair");
+    
+    if (armL && armR) {
+      gsap.set(armL, { x: -93, y: 220, rotation: 105, transformOrigin: "top left" });
+      gsap.set(armR, { x: -93, y: 220, rotation: -105, transformOrigin: "top right" });
+    }
+  }, []);
 
-    // Initial Arms Position (Hidden)
-    gsap.set(armL, { x: -93, y: 220, rotation: 105, transformOrigin: "top left" });
-    gsap.set(armR, { x: -93, y: 220, rotation: -105, transformOrigin: "top right" });
+  // --- HEAD & FACE MOVEMENT LOGIC ---
+  useEffect(() => {
+    if (isPasswordFocused) return;
 
-    // Helper: Calculate Angle
-    const getAngle = (x1: number, y1: number, x2: number, y2: number) => {
-      return Math.atan2(y1 - y2, x1 - x2);
-    };
+    let currentLength = 0;
+    if (activeField === "name") currentLength = name.length;
+    else if (activeField === "email") currentLength = email.length;
+    else {
+      // Reset Face Center
+      gsap.to([".eyeL", ".eyeR", ".nose", ".mouth", ".chin", ".face", ".eyebrow", ".outerEar", ".earHair", ".hair"], 
+        { duration: 0.6, x: 0, y: 0, rotation: 0, skewX: 0, scale: 1 });
+      return;
+    }
 
-    // Helper: Get Element Position
-    const getPosition = (el: any) => {
-      let xPos = 0;
-      let yPos = 0;
-      while (el) {
-        if (el.tagName === "BODY") {
-          const xScroll = el.scrollLeft || document.documentElement.scrollLeft;
-          const yScroll = el.scrollTop || document.documentElement.scrollTop;
-          xPos += el.offsetLeft - xScroll + el.clientLeft;
-          yPos += el.offsetTop - yScroll + el.clientTop;
-        } else {
-          xPos += el.offsetLeft - el.scrollLeft + el.clientLeft;
-          yPos += el.offsetTop - el.scrollTop + el.clientTop;
-        }
-        el = el.offsetParent;
-      }
-      return { x: xPos, y: yPos };
-    };
+    const limit = 30;
+    const progress = Math.min(currentLength, limit) / limit; 
+    const lookX = progress * 14; 
+    const lookY = progress * 2;  
 
-    // MAIN ANIMATION FUNCTION
-    const animateFace = (e: any) => {
-      if (!svgRef.current) return;
-      
-      // Determine which input is active (Name or Email)
-      const activeInput = document.activeElement as HTMLInputElement;
-      if (!activeInput || (activeInput !== nameRef.current && activeInput !== emailRef.current)) return;
+    // Apply Animations
+    gsap.to([".eyeL", ".eyeR"], { duration: 0.4, x: lookX, y: lookY });
+    gsap.to(".nose", { duration: 0.4, x: lookX * 0.8, y: lookY, rotation: progress * 5, transformOrigin: "center center" });
+    gsap.to(".mouth", { duration: 0.4, x: lookX * 0.8, y: lookY, rotation: progress * 5, transformOrigin: "center center" });
+    gsap.to(".chin", { duration: 0.4, x: lookX * 0.6, y: lookY });
+    
+    const faceSkew = progress * 5;
+    gsap.to([".face", ".eyebrow"], { duration: 0.4, x: lookX * 0.3, skewX: -faceSkew, transformOrigin: "top center" });
+    
+    const earMove = lookX * 0.3;
+    gsap.to([".earL .outerEar", ".earL .earHair"], { duration: 0.4, x: earMove, y: -earMove * 0.5 });
+    gsap.to([".earR .outerEar", ".earR .earHair"], { duration: 0.4, x: earMove, y: earMove * 0.5 });
+    gsap.to(".hair", { duration: 0.4, x: lookX * 0.4, rotation: progress * 2, transformOrigin: "bottom center" });
 
-      const inputCoords = getPosition(activeInput);
-      const svgCoords = getPosition(svgRef.current);
-      const centerCoords = getPosition(svgRef.current);
-      const screenCenter = centerCoords.x + (svgRef.current.clientWidth / 2);
-      
-      // Calculate cursor position (Approximate)
-      const caretPos = inputCoords.x + (activeInput.value.length * 8); 
-      const dFromC = screenCenter - caretPos;
-      
-      // Limits
-      const eyeMaxHorizD = 20;
-      const eyeMaxVertD = 10;
-      const noseMaxHorizD = 23;
-      const noseMaxVertD = 10;
-
-      let eyeDistH = -dFromC * 0.05;
-      if (eyeDistH > eyeMaxHorizD) eyeDistH = eyeMaxHorizD;
-      if (eyeDistH < -eyeMaxHorizD) eyeDistH = -eyeMaxHorizD;
-
-      // Coordinates relative to SVG
-      const eyeLCoords = { x: svgCoords.x + 84, y: svgCoords.y + 76 };
-      const eyeRCoords = { x: svgCoords.x + 113, y: svgCoords.y + 76 };
-      const noseCoords = { x: svgCoords.x + 97, y: svgCoords.y + 81 };
-      const mouthCoords = { x: svgCoords.x + 100, y: svgCoords.y + 100 };
-
-      // Calculate Angles
-      const eyeLAngle = getAngle(eyeLCoords.x, eyeLCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
-      const eyeRAngle = getAngle(eyeRCoords.x, eyeRCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
-      const noseAngle = getAngle(noseCoords.x, noseCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
-      const mouthAngle = getAngle(mouthCoords.x, mouthCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
-
-      // Shifts
-      const eyeLX = Math.cos(eyeLAngle) * eyeMaxHorizD;
-      const eyeLY = Math.sin(eyeLAngle) * eyeMaxVertD;
-      const eyeRX = Math.cos(eyeRAngle) * eyeMaxHorizD;
-      const eyeRY = Math.sin(eyeRAngle) * eyeMaxVertD;
-      const noseX = Math.cos(noseAngle) * noseMaxHorizD;
-      const noseY = Math.sin(noseAngle) * noseMaxVertD;
-      const mouthX = Math.cos(mouthAngle) * noseMaxHorizD;
-      const mouthY = Math.sin(mouthAngle) * noseMaxVertD;
-      const mouthR = Math.cos(mouthAngle) * 6;
-      
-      const chinX = mouthX * 0.8;
-      const chinY = mouthY * 0.5;
-      let chinS = 1 - ((dFromC * 0.15) / 100);
-      if (chinS > 1) chinS = 1 - (chinS - 1);
-      
-      const faceX = mouthX * 0.3;
-      const faceY = mouthY * 0.4;
-      const faceSkew = Math.cos(mouthAngle) * 5;
-      const eyebrowSkew = Math.cos(mouthAngle) * 25;
-      const outerEarX = Math.cos(mouthAngle) * 4;
-      const outerEarY = Math.cos(mouthAngle) * 5;
-      const hairX = Math.cos(mouthAngle) * 6;
-      const hairS = 1.2;
-
-      // --- APPLY ANIMATIONS TO ALL PARTS ---
-      gsap.to(eyeL, { duration: 1, x: -eyeLX, y: -eyeLY });
-      gsap.to(eyeR, { duration: 1, x: -eyeRX, y: -eyeRY });
-      gsap.to(nose, { duration: 1, x: -noseX, y: -noseY, rotation: mouthR, transformOrigin: "center center" });
-      gsap.to(mouth, { duration: 1, x: -mouthX, y: -mouthY, rotation: mouthR, transformOrigin: "center center" });
-      gsap.to(chin, { duration: 1, x: -chinX, y: -chinY, scaleY: chinS });
-      gsap.to(face, { duration: 1, x: -faceX, y: -faceY, skewX: -faceSkew, transformOrigin: "center top" });
-      gsap.to(eyebrow, { duration: 1, x: -faceX, y: -faceY, skewX: -eyebrowSkew, transformOrigin: "center top" });
-      gsap.to(outerEarL, { duration: 1, x: outerEarX, y: -outerEarY });
-      gsap.to(outerEarR, { duration: 1, x: outerEarX, y: outerEarY });
-      gsap.to(earHairL, { duration: 1, x: -outerEarX, y: -outerEarY });
-      gsap.to(earHairR, { duration: 1, x: -outerEarX, y: outerEarY });
-      gsap.to(hair, { duration: 1, x: hairX, scaleY: hairS, transformOrigin: "center bottom" });
-    };
-
-    const resetFace = () => {
-        gsap.to([eyeL, eyeR, nose, mouth, chin, face, eyebrow, outerEarL, outerEarR, earHairL, earHairR, hair], { duration: 1, x: 0, y: 0, rotation: 0, scale: 1, skewX: 0 });
-    };
-
-    // Event Listeners for BOTH Name and Email
-    [nameRef.current, emailRef.current].forEach(input => {
-        if (input) {
-            input.addEventListener("input", animateFace);
-            input.addEventListener("focus", animateFace);
-            input.addEventListener("blur", resetFace);
-        }
-    });
-
-    return () => {
-        [nameRef.current, emailRef.current].forEach(input => {
-            if (input) {
-                input.removeEventListener("input", animateFace);
-                input.removeEventListener("focus", animateFace);
-                input.removeEventListener("blur", resetFace);
-            }
-        });
-    };
-  }, [name, email]); // Re-attach when values change to track length
+  }, [name, email, activeField, isPasswordFocused]);
 
   // --- PASSWORD HANDLERS ---
   const handlePasswordFocus = () => {
-    gsap.to(".armL", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "quad.out" });
-    gsap.to(".armR", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "quad.out", delay: 0.1 });
+    setIsPasswordFocused(true);
+    setActiveField("none");
+    
+    // Reset Face
+    gsap.to([".eyeL", ".eyeR", ".nose", ".mouth", ".chin", ".face", ".eyebrow", ".outerEar", ".earHair", ".hair"], 
+      { duration: 0.3, x: 0, y: 0, rotation: 0, skewX: 0, scale: 1 });
+
+    // Arms Up
+    gsap.to(".armL", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "back.out(1.7)" });
+    gsap.to(".armR", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "back.out(1.7)", delay: 0.05 });
   };
 
   const handlePasswordBlur = () => {
-    gsap.to(".armL", { duration: 1.35, y: 220, ease: "quad.out" });
-    gsap.to(".armL", { duration: 1.35, rotation: 105, ease: "quad.out", delay: 0.1 });
-    gsap.to(".armR", { duration: 1.35, y: 220, ease: "quad.out" });
-    gsap.to(".armR", { duration: 1.35, rotation: -105, ease: "quad.out", delay: 0.1 });
+    setIsPasswordFocused(false);
+    // Arms Down
+    gsap.to(".armL", { duration: 1.2, x: -93, y: 220, rotation: 105, ease: "power2.out" });
+    gsap.to(".armR", { duration: 1.2, x: -93, y: 220, rotation: -105, ease: "power2.out", delay: 0.05 });
   };
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     try {
-        const res = await fetch("/api/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
-        });
-  
-        if (res.ok) {
-          alert("Account Created! Please Login.");
-          router.push("/login");
-        } else {
-          const data = await res.json();
-          alert(data.error || "Registration failed");
-        }
-      } catch (error) {
-        alert("Something went wrong");
-      } finally {
-        setLoading(false);
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (res.ok) {
+        alert("Account Created! Please Login.");
+        router.push("/login");
+      } else {
+        const data = await res.json();
+        alert(data.error || "Registration failed");
       }
+    } catch (error) {
+      alert("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -215,9 +124,9 @@ export default function RegisterPage() {
       {/* Register Card */}
       <form onSubmit={handleSubmit} className="w-full max-w-[400px] bg-gray-900 p-8 rounded-2xl border border-gray-800 relative z-10 shadow-2xl mt-12">
         
-        {/* YETI CONTAINER */}
-        <div className="svgContainer w-[180px] h-[180px] mx-auto -mt-28 mb-4 relative rounded-full bg-black border-4 border-gray-800 overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.2)]" ref={svgRef}>
-          <div style={{ width: '100%', height: '100%' }}>
+        {/* YETI SVG */}
+        <div className="w-[180px] h-[180px] mx-auto -mt-28 mb-4 relative rounded-full bg-black border-4 border-gray-800 overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+          <div className="svgContainer" ref={svgRef} style={{ width: '100%', height: '100%' }}>
             <svg className="mySVG" viewBox="0 0 200 200">
               <defs>
                 <circle id="armMaskPath" cx="100" cy="100" r="100" />
@@ -272,20 +181,21 @@ export default function RegisterPage() {
                 <path className="mouthOutline" fill="none" stroke="#3A5E77" strokeWidth="2.5" strokeLinejoin="round" d="M100.2,101c-0.4,0-1.4,0-1.8,0c-2.7-0.3-5.3-1.1-8-2.5c-0.7-0.3-0.9-1.2-0.6-1.8 c0.2-0.5,0.7-0.7,1.2-0.7c0.2,0,0.5,0.1,0.6,0.2c3,1.5,5.8,2.3,8.6,2.3s5.7-0.7,8.6-2.3c0.2-0.1,0.4-0.2,0.6-0.2 c0.5,0,1,0.3,1.2,0.7c0.4,0.7,0.1,1.5-0.6,1.9c-2.6,1.4-5.3,2.2-7.9,2.5C101.7,101,100.5,101,100.2,101z" />
               </g>
               <path className="nose" d="M97.7 79.9h4.7c1.9 0 3 2.2 1.9 3.7l-2.3 3.3c-.9 1.3-2.9 1.3-3.8 0l-2.3-3.3c-1.3-1.6-.2-3.7 1.8-3.7z" fill="#3a5e77" />
+              
               <g className="arms" clipPath="url(#armMask)">
                 <g className="armL">
-                  <path fill="#ddf1fa" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.5" d="M121.3 97.4L111 58.7l38.8-10.4 20 36.1z" />
-                  <path fill="#ddf1fa" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.5" d="M134.4 52.5l19.3-5.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1L146 59.7M160.8 76.5l19.4-5.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-18.3 4.9M158.3 66.8l23.1-6.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-23.1 6.2M150.9 58.4l26-7c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-21.3 5.7" />
+                  <path fill="#ddf1fa" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M121.3 97.4L111 58.7l38.8-10.4 20 36.1z" />
+                  <path fill="#ddf1fa" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M134.4 52.5l19.3-5.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1L146 59.7M160.8 76.5l19.4-5.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-18.3 4.9M158.3 66.8l23.1-6.2c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-23.1 6.2M150.9 58.4l26-7c2.7-.7 5.4.9 6.1 3.5.7 2.7-.9 5.4-3.5 6.1l-21.3 5.7" />
                   <path fill="#a9ddf3" d="M178.8 74.7l2.2-.6c1.1-.3 2.2.3 2.4 1.4.3 1.1-.3 2.2-1.4 2.4l-2.2.6-1-3.8zM180.1 64l2.2-.6c1.1-.3 2.2.3 2.4 1.4.3 1.1-.3 2.2-1.4 2.4l-2.2.6-1-3.8zM175.5 54.9l2.2-.6c1.1-.3 2.2.3 2.4 1.4.3 1.1-.3 2.2-1.4 2.4l-2.2.6-1-3.8zM152.1 49.4l2.2-.6c1.1-.3 2.2.3 2.4 1.4.3 1.1-.3 2.2-1.4 2.4l-2.2.6-1-3.8z" />
-                  <path fill="#fff" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M123.5 96.8c-41.4 14.9-84.1 30.7-108.2 35.5L1.2 80c33.5-9.9 71.9-16.5 111.9-21.8" />
-                  <path fill="#fff" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M108.5 59.4c7.7-5.3 14.3-8.4 22.8-13.2-2.4 5.3-4.7 10.3-6.7 15.1 4.3.3 8.4.7 12.3 1.3-4.2 5-8.1 9.6-11.5 13.9 3.1 1.1 6 2.4 8.7 3.8-1.4 2.9-2.7 5.8-3.9 8.5 2.5 3.5 4.6 7.2 6.3 11-4.9-.8-9-.7-16.2-2.7M94.5 102.8c-.6 4-3.8 8.9-9.4 14.7-2.6-1.8-5-3.7-7.2-5.7-2.5 4.1-6.6 8.8-12.2 14-1.9-2.2-3.4-4.5-4.5-6.9-4.4 3.3-9.5 6.9-15.4 10.8-.2-3.4.1-7.1 1.1-10.9M97.5 62.9c-1.7-2.4-5.9-4.1-12.4-5.2-.9 2.2-1.8 4.3-2.5 6.5-3.8-1.8-9.4-3.1-17-3.8.5 2.3 1.2 4.5 1.9 6.8-5-.6-11.2-.9-18.4-1 2 2.9.9 3.5 3.9 6.2" />
+                  <path fill="#fff" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M123.5 96.8c-41.4 14.9-84.1 30.7-108.2 35.5L1.2 80c33.5-9.9 71.9-16.5 111.9-21.8" />
+                  <path fill="#fff" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M108.5 59.4c7.7-5.3 14.3-8.4 22.8-13.2-2.4 5.3-4.7 10.3-6.7 15.1 4.3.3 8.4.7 12.3 1.3-4.2 5-8.1 9.6-11.5 13.9 3.1 1.1 6 2.4 8.7 3.8-1.4 2.9-2.7 5.8-3.9 8.5 2.5 3.5 4.6 7.2 6.3 11-4.9-.8-9-.7-16.2-2.7M94.5 102.8c-.6 4-3.8 8.9-9.4 14.7-2.6-1.8-5-3.7-7.2-5.7-2.5 4.1-6.6 8.8-12.2 14-1.9-2.2-3.4-4.5-4.5-6.9-4.4 3.3-9.5 6.9-15.4 10.8-.2-3.4.1-7.1 1.1-10.9M97.5 62.9c-1.7-2.4-5.9-4.1-12.4-5.2-.9 2.2-1.8 4.3-2.5 6.5-3.8-1.8-9.4-3.1-17-3.8.5 2.3 1.2 4.5 1.9 6.8-5-.6-11.2-.9-18.4-1 2 2.9.9 3.5 3.9 6.2" />
                 </g>
                 <g className="armR">
-                  <path fill="#ddf1fa" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.5" d="M265.4 97.3l10.4-38.6-38.9-10.5-20 36.1z" />
-                  <path fill="#ddf1fa" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.5" d="M252.4 52.4L233 47.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l10.3 2.8M226 76.4l-19.4-5.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l18.3 4.9M228.4 66.7l-23.1-6.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l23.1 6.2M235.8 58.3l-26-7c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l21.3 5.7" />
+                  <path fill="#ddf1fa" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M265.4 97.3l10.4-38.6-38.9-10.5-20 36.1z" />
+                  <path fill="#ddf1fa" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M252.4 52.4L233 47.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l10.3 2.8M226 76.4l-19.4-5.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l18.3 4.9M228.4 66.7l-23.1-6.2c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l23.1 6.2M235.8 58.3l-26-7c-2.7-.7-5.4.9-6.1 3.5-.7 2.7.9 5.4 3.5 6.1l21.3 5.7" />
                   <path fill="#a9ddf3" d="M207.9 74.7l-2.2-.6c-1.1-.3-2.2.3-2.4 1.4-.3 1.1.3 2.2 1.4 2.4l2.2.6 1-3.8zM206.7 64l-2.2-.6c-1.1-.3-2.2.3-2.4 1.4-.3 1.1.3 2.2 1.4 2.4l2.2.6 1-3.8zM211.2 54.8l-2.2-.6c-1.1-.3-2.2.3-2.4 1.4-.3 1.1.3 2.2 1.4 2.4l2.2.6 1-3.8zM234.6 49.4l-2.2-.6c-1.1-.3-2.2.3-2.4 1.4-.3 1.1.3 2.2 1.4 2.4l2.2.6 1-3.8z" />
-                  <path fill="#fff" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M263.3 96.7c41.4 14.9 84.1 30.7 108.2 35.5l14-52.3C352 70 313.6 63.5 273.6 58.1" />
-                  <path fill="#fff" stroke="#3a5e77" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M278.2 59.3l-18.6-10 2.5 11.9-10.7 6.5 9.9 8.7-13.9 6.4 9.1 5.9-13.2 9.2 23.1-.9M284.5 100.1c-.4 4 1.8 8.9 6.7 14.8 3.5-1.8 6.7-3.6 9.7-5.5 1.8 4.2 5.1 8.9 10.1 14.1 2.7-2.1 5.1-4.4 7.1-6.8 4.1 3.4 9 7 14.7 11 1.2-3.4 1.8-7 1.7-10.9M314 66.7s5.4-5.7 12.6-7.4c1.7 2.9 3.3 5.7 4.9 8.6 3.8-2.5 9.8-4.4 18.2-5.7.1 3.1.1 6.1 0 9.2 5.5-1 12.5-1.6 20.8-1.9-1.4 3.9-2.5 8.4-2.5 8.4" />
+                  <path fill="#fff" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M263.3 96.7c41.4 14.9 84.1 30.7 108.2 35.5l14-52.3C352 70 313.6 63.5 273.6 58.1" />
+                  <path fill="#fff" stroke="#3a5e77" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M278.2 59.3l-18.6-10 2.5 11.9-10.7 6.5 9.9 8.7-13.9 6.4 9.1 5.9-13.2 9.2 23.1-.9M284.5 100.1c-.4 4 1.8 8.9 6.7 14.8 3.5-1.8 6.7-3.6 9.7-5.5 1.8 4.2 5.1 8.9 10.1 14.1 2.7-2.1 5.1-4.4 7.1-6.8 4.1 3.4 9 7 14.7 11 1.2-3.4 1.8-7 1.7-10.9M314 66.7s5.4-5.7 12.6-7.4c1.7 2.9 3.3 5.7 4.9 8.6 3.8-2.5 9.8-4.4 18.2-5.7.1 3.1.1 6.1 0 9.2 5.5-1 12.5-1.6 20.8-1.9-1.4 3.9-2.5 8.4-2.5 8.4" />
                 </g>
               </g>
             </svg>
@@ -297,7 +207,6 @@ export default function RegisterPage() {
         </h2>
 
         <div className="space-y-5">
-          {/* NAME FIELD */}
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Full Name</label>
             <input
@@ -305,12 +214,13 @@ export default function RegisterPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={() => setActiveField("name")}
+              onBlur={() => setActiveField("none")}
               className="w-full px-4 py-3 bg-black border-2 border-gray-700 rounded-xl focus:border-purple-500 outline-none text-white font-medium transition-all"
               placeholder="Your Name"
             />
           </div>
 
-          {/* EMAIL FIELD */}
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Email</label>
             <input
@@ -318,12 +228,13 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setActiveField("email")}
+              onBlur={() => setActiveField("none")}
               className="w-full px-4 py-3 bg-black border-2 border-gray-700 rounded-xl focus:border-purple-500 outline-none text-white font-medium transition-all"
               placeholder="gymbro@example.com"
             />
           </div>
 
-          {/* PASSWORD FIELD */}
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Password</label>
             <input

@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "class", // 👈 यह सबसे जरूरी लाइन है
+  darkMode: "class", // 👈 YE SABSE ZAROORI HAI
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}", // Root app folder
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
