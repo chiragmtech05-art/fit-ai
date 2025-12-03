@@ -11,105 +11,192 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Refs
+  // DOM Refs
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<HTMLDivElement>(null);
 
-  // States
-  const [activeField, setActiveField] = useState<"name" | "email" | "none">("none");
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-
-  // --- ANIMATION INIT ---
+  // --- ANIMATION LOGIC (GSAP) ---
   useEffect(() => {
+    // 1. Select DOM Elements
     const armL = document.querySelector(".armL");
     const armR = document.querySelector(".armR");
-    
-    if (armL && armR) {
-      gsap.set(armL, { x: -93, y: 220, rotation: 105, transformOrigin: "top left" });
-      gsap.set(armR, { x: -93, y: 220, rotation: -105, transformOrigin: "top right" });
-    }
+    const eyeL = document.querySelector(".eyeL");
+    const eyeR = document.querySelector(".eyeR");
+    const nose = document.querySelector(".nose");
+    const mouth = document.querySelector(".mouth");
+    const chin = document.querySelector(".chin");
+    const face = document.querySelector(".face");
+    const eyebrow = document.querySelector(".eyebrow");
+    const outerEarL = document.querySelector(".earL .outerEar");
+    const outerEarR = document.querySelector(".earR .outerEar");
+    const earHairL = document.querySelector(".earL .earHair");
+    const earHairR = document.querySelector(".earR .earHair");
+    const hair = document.querySelector(".hair");
+
+    // 2. Set Initial State (Arms Hidden)
+    gsap.set(armL, { x: -93, y: 220, rotation: 105, transformOrigin: "top left" });
+    gsap.set(armR, { x: -93, y: 220, rotation: -105, transformOrigin: "top right" });
+
+    // 3. Helper Functions
+    const getAngle = (x1: number, y1: number, x2: number, y2: number) => {
+      return Math.atan2(y1 - y2, x1 - x2);
+    };
+
+    const getPosition = (el: any) => {
+      let xPos = 0;
+      let yPos = 0;
+      while (el) {
+        if (el.tagName === "BODY") {
+          const xScroll = el.scrollLeft || document.documentElement.scrollLeft;
+          const yScroll = el.scrollTop || document.documentElement.scrollTop;
+          xPos += el.offsetLeft - xScroll + el.clientLeft;
+          yPos += el.offsetTop - yScroll + el.clientTop;
+        } else {
+          xPos += el.offsetLeft - el.scrollLeft + el.clientLeft;
+          yPos += el.offsetTop - el.scrollTop + el.clientTop;
+        }
+        el = el.offsetParent;
+      }
+      return { x: xPos, y: yPos };
+    };
+
+    // 4. MAIN FACE ANIMATION
+    const animateFace = (e: any) => {
+      if (!svgRef.current) return;
+      const activeInput = e.target; // Identify whether Name or Email
+      
+      const inputCoords = getPosition(activeInput);
+      const svgCoords = getPosition(svgRef.current);
+      const centerCoords = getPosition(svgRef.current);
+      const screenCenter = centerCoords.x + (svgRef.current.clientWidth / 2);
+      
+      // Calculate Caret Position
+      const caretPos = inputCoords.x + (activeInput.value.length * 8); // Approx cursor width
+      const dFromC = screenCenter - caretPos;
+      
+      const eyeMaxHorizD = 20;
+      const eyeMaxVertD = 10;
+      const noseMaxHorizD = 23;
+      const noseMaxVertD = 10;
+
+      let eyeDistH = -dFromC * 0.05;
+      if (eyeDistH > eyeMaxHorizD) eyeDistH = eyeMaxHorizD;
+      if (eyeDistH < -eyeMaxHorizD) eyeDistH = -eyeMaxHorizD;
+
+      // Feature Coords relative to SVG
+      const eyeLCoords = { x: svgCoords.x + 84, y: svgCoords.y + 76 };
+      const eyeRCoords = { x: svgCoords.x + 113, y: svgCoords.y + 76 };
+      const noseCoords = { x: svgCoords.x + 97, y: svgCoords.y + 81 };
+      const mouthCoords = { x: svgCoords.x + 100, y: svgCoords.y + 100 };
+
+      // Calculate Angles for 3D Look
+      const eyeLAngle = getAngle(eyeLCoords.x, eyeLCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
+      const eyeRAngle = getAngle(eyeRCoords.x, eyeRCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
+      const noseAngle = getAngle(noseCoords.x, noseCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
+      const mouthAngle = getAngle(mouthCoords.x, mouthCoords.y, inputCoords.x + caretPos, inputCoords.y + 25);
+
+      // Shifts
+      const eyeLX = Math.cos(eyeLAngle) * eyeMaxHorizD;
+      const eyeLY = Math.sin(eyeLAngle) * eyeMaxVertD;
+      const eyeRX = Math.cos(eyeRAngle) * eyeMaxHorizD;
+      const eyeRY = Math.sin(eyeRAngle) * eyeMaxVertD;
+      const noseX = Math.cos(noseAngle) * noseMaxHorizD;
+      const noseY = Math.sin(noseAngle) * noseMaxVertD;
+      const mouthX = Math.cos(mouthAngle) * noseMaxHorizD;
+      const mouthY = Math.sin(mouthAngle) * noseMaxVertD;
+      const mouthR = Math.cos(mouthAngle) * 6;
+      
+      const chinX = mouthX * 0.8;
+      const chinY = mouthY * 0.5;
+      let chinS = 1 - ((dFromC * 0.15) / 100);
+      if (chinS > 1) chinS = 1 - (chinS - 1);
+      
+      const faceX = mouthX * 0.3;
+      const faceY = mouthY * 0.4;
+      const faceSkew = Math.cos(mouthAngle) * 5;
+      const eyebrowSkew = Math.cos(mouthAngle) * 25;
+      const outerEarX = Math.cos(mouthAngle) * 4;
+      const outerEarY = Math.cos(mouthAngle) * 5;
+      const hairX = Math.cos(mouthAngle) * 6;
+      const hairS = 1.2;
+
+      // GSAP Moves
+      gsap.to(eyeL, { duration: 1, x: -eyeLX, y: -eyeLY });
+      gsap.to(eyeR, { duration: 1, x: -eyeRX, y: -eyeRY });
+      gsap.to(nose, { duration: 1, x: -noseX, y: -noseY, rotation: mouthR, transformOrigin: "center center" });
+      gsap.to(mouth, { duration: 1, x: -mouthX, y: -mouthY, rotation: mouthR, transformOrigin: "center center" });
+      gsap.to(chin, { duration: 1, x: -chinX, y: -chinY, scaleY: chinS });
+      gsap.to(face, { duration: 1, x: -faceX, y: -faceY, skewX: -faceSkew, transformOrigin: "center top" });
+      gsap.to(eyebrow, { duration: 1, x: -faceX, y: -faceY, skewX: -eyebrowSkew, transformOrigin: "center top" });
+      gsap.to(outerEarL, { duration: 1, x: outerEarX, y: -outerEarY });
+      gsap.to(outerEarR, { duration: 1, x: outerEarX, y: outerEarY });
+      gsap.to(earHairL, { duration: 1, x: -outerEarX, y: -outerEarY });
+      gsap.to(earHairR, { duration: 1, x: -outerEarX, y: outerEarY });
+      gsap.to(hair, { duration: 1, x: hairX, scaleY: hairS, transformOrigin: "center bottom" });
+    };
+
+    const resetFace = () => {
+        gsap.to([eyeL, eyeR, nose, mouth, chin, face, eyebrow, outerEarL, outerEarR, earHairL, earHairR, hair], { duration: 1, x: 0, y: 0, rotation: 0, scale: 1, skewX: 0 });
+    };
+
+    // Listeners for Name AND Email
+    const inputs = [nameRef.current, emailRef.current];
+    inputs.forEach(input => {
+        if (input) {
+            input.addEventListener("input", animateFace);
+            input.addEventListener("focus", animateFace);
+            input.addEventListener("blur", resetFace);
+        }
+    });
+
+    return () => {
+        inputs.forEach(input => {
+            if (input) {
+                input.removeEventListener("input", animateFace);
+                input.removeEventListener("focus", animateFace);
+                input.removeEventListener("blur", resetFace);
+            }
+        });
+    };
   }, []);
-
-  // --- HEAD & FACE MOVEMENT LOGIC ---
-  useEffect(() => {
-    if (isPasswordFocused) return;
-
-    let currentLength = 0;
-    if (activeField === "name") currentLength = name.length;
-    else if (activeField === "email") currentLength = email.length;
-    else {
-      // Reset Face Center
-      gsap.to([".eyeL", ".eyeR", ".nose", ".mouth", ".chin", ".face", ".eyebrow", ".outerEar", ".earHair", ".hair"], 
-        { duration: 0.6, x: 0, y: 0, rotation: 0, skewX: 0, scale: 1 });
-      return;
-    }
-
-    const limit = 30;
-    const progress = Math.min(currentLength, limit) / limit; 
-    const lookX = progress * 14; 
-    const lookY = progress * 2;  
-
-    // Apply Animations
-    gsap.to([".eyeL", ".eyeR"], { duration: 0.4, x: lookX, y: lookY });
-    gsap.to(".nose", { duration: 0.4, x: lookX * 0.8, y: lookY, rotation: progress * 5, transformOrigin: "center center" });
-    gsap.to(".mouth", { duration: 0.4, x: lookX * 0.8, y: lookY, rotation: progress * 5, transformOrigin: "center center" });
-    gsap.to(".chin", { duration: 0.4, x: lookX * 0.6, y: lookY });
-    
-    const faceSkew = progress * 5;
-    gsap.to([".face", ".eyebrow"], { duration: 0.4, x: lookX * 0.3, skewX: -faceSkew, transformOrigin: "top center" });
-    
-    const earMove = lookX * 0.3;
-    gsap.to([".earL .outerEar", ".earL .earHair"], { duration: 0.4, x: earMove, y: -earMove * 0.5 });
-    gsap.to([".earR .outerEar", ".earR .earHair"], { duration: 0.4, x: earMove, y: earMove * 0.5 });
-    gsap.to(".hair", { duration: 0.4, x: lookX * 0.4, rotation: progress * 2, transformOrigin: "bottom center" });
-
-  }, [name, email, activeField, isPasswordFocused]);
 
   // --- PASSWORD HANDLERS ---
   const handlePasswordFocus = () => {
-    setIsPasswordFocused(true);
-    setActiveField("none");
-    
-    // Reset Face
-    gsap.to([".eyeL", ".eyeR", ".nose", ".mouth", ".chin", ".face", ".eyebrow", ".outerEar", ".earHair", ".hair"], 
-      { duration: 0.3, x: 0, y: 0, rotation: 0, skewX: 0, scale: 1 });
-
-    // Arms Up
-    gsap.to(".armL", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "back.out(1.7)" });
-    gsap.to(".armR", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "back.out(1.7)", delay: 0.05 });
+    gsap.to(".armL", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "quad.out" });
+    gsap.to(".armR", { duration: 0.45, x: -93, y: 2, rotation: 0, ease: "quad.out", delay: 0.1 });
   };
 
   const handlePasswordBlur = () => {
-    setIsPasswordFocused(false);
-    // Arms Down
-    gsap.to(".armL", { duration: 1.2, x: -93, y: 220, rotation: 105, ease: "power2.out" });
-    gsap.to(".armR", { duration: 1.2, x: -93, y: 220, rotation: -105, ease: "power2.out", delay: 0.05 });
+    gsap.to(".armL", { duration: 1.35, y: 220, ease: "quad.out" });
+    gsap.to(".armL", { duration: 1.35, rotation: 105, ease: "quad.out", delay: 0.1 });
+    gsap.to(".armR", { duration: 1.35, y: 220, ease: "quad.out" });
+    gsap.to(".armR", { duration: 1.35, rotation: -105, ease: "quad.out", delay: 0.1 });
   };
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (res.ok) {
-        alert("Account Created! Please Login.");
-        router.push("/login");
-      } else {
-        const data = await res.json();
-        alert(data.error || "Registration failed");
+        const res = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        });
+  
+        if (res.ok) {
+          alert("Account Created! Please Login.");
+          router.push("/login");
+        } else {
+          const data = await res.json();
+          alert(data.error || "Registration failed");
+        }
+      } catch (error) {
+        alert("Something went wrong");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      alert("Something went wrong");
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -124,7 +211,7 @@ export default function RegisterPage() {
       {/* Register Card */}
       <form onSubmit={handleSubmit} className="w-full max-w-[400px] bg-gray-900 p-8 rounded-2xl border border-gray-800 relative z-10 shadow-2xl mt-12">
         
-        {/* YETI SVG */}
+        {/* YETI CONTAINER */}
         <div className="w-[180px] h-[180px] mx-auto -mt-28 mb-4 relative rounded-full bg-black border-4 border-gray-800 overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.2)]">
           <div className="svgContainer" ref={svgRef} style={{ width: '100%', height: '100%' }}>
             <svg className="mySVG" viewBox="0 0 200 200">
@@ -209,42 +296,41 @@ export default function RegisterPage() {
         <div className="space-y-5">
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Full Name</label>
-            <input
+            <input 
               ref={nameRef}
               type="text"
+              required
+              className="w-full h-[60px] px-4 bg-[#f3fafd] dark:bg-black border-2 border-[#217093] dark:border-gray-700 rounded focus:border-[#4eb8dd] dark:focus:border-purple-500 outline-none text-[#353538] dark:text-white font-semibold text-lg transition-all"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onFocus={() => setActiveField("name")}
-              onBlur={() => setActiveField("none")}
-              className="w-full px-4 py-3 bg-black border-2 border-gray-700 rounded-xl focus:border-purple-500 outline-none text-white font-medium transition-all"
               placeholder="Your Name"
             />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Email</label>
-            <input
+            <input 
               ref={emailRef}
               type="email"
+              required
+              className="w-full h-[60px] px-4 bg-[#f3fafd] dark:bg-black border-2 border-[#217093] dark:border-gray-700 rounded focus:border-[#4eb8dd] dark:focus:border-purple-500 outline-none text-[#353538] dark:text-white font-semibold text-lg transition-all"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={() => setActiveField("email")}
-              onBlur={() => setActiveField("none")}
-              className="w-full px-4 py-3 bg-black border-2 border-gray-700 rounded-xl focus:border-purple-500 outline-none text-white font-medium transition-all"
               placeholder="gymbro@example.com"
             />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1 ml-1">Password</label>
-            <input
+            <input 
               ref={passwordRef}
               type="password"
+              required
+              className="w-full h-[60px] px-4 bg-[#f3fafd] dark:bg-black border-2 border-[#217093] dark:border-gray-700 rounded focus:border-[#4eb8dd] dark:focus:border-purple-500 outline-none text-[#353538] dark:text-white font-semibold text-lg transition-all"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={handlePasswordFocus}
               onBlur={handlePasswordBlur}
-              className="w-full px-4 py-3 bg-black border-2 border-gray-700 rounded-xl focus:border-purple-500 outline-none text-white font-medium transition-all tracking-widest"
               placeholder="••••••••"
             />
           </div>
