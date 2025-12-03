@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IWorkoutLog extends Document {
+  userEmail: string; // 👈 Ye zaroori hai
   workoutName: string;
   date: Date;
   duration: number;
@@ -9,6 +10,7 @@ export interface IWorkoutLog extends Document {
 
 const WorkoutLogSchema: Schema<IWorkoutLog> = new Schema(
   {
+    userEmail: { type: String, required: true }, // 👈 User ka email
     workoutName: { type: String, required: true },
     date: { type: Date, default: Date.now },
     duration: { type: Number, required: true },

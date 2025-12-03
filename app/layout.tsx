@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-// 👇 Path fix: src folder ke andar dhoondhna hai
 import ThemeProvider from "../src/components/ThemeProvider";
+import AuthProvider from "../src/components/AuthProvider"; // 👈 New Import
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,11 +18,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* 👇 YAHAN HAI MAGIC: Light mode me gray, Dark me black */}
       <body className={`${inter.className} bg-gray-50 text-gray-900 dark:bg-black dark:text-white transition-colors duration-300`}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        {/* 👇 AuthProvider sabse bahar lagana hai */}
+        <AuthProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
